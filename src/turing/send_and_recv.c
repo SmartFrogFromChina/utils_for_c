@@ -275,6 +275,16 @@ static void get_resp_header(const char *response, struct resp_header *resp)
   
 }
 
+int get_response_code(char *str)
+{
+    if(!str)
+        return -1;
+    if(strstr(str,"40000"))
+        return -1;
+
+    save_token(str);
+    return 0;
+}
 
 int getResponse(int socket_fd, char **text)
 {
@@ -366,14 +376,13 @@ int getResponse(int socket_fd, char **text)
 	}
     //printf("receiving contents over.............");
     printf("contents is [%s]",code);
-    
+    ret = get_response_code(code);
     *text = code;
-    
 exit:
 	if(response)
 		free(response);
 	
-	return length;
+	return ret;
 }
 static void GetRandStr(char s[])
 {
@@ -515,6 +524,7 @@ int send_data_to_turing(int index, char *pData, int iLength)
     if(ret < 0) {
         goto EXIT;
     }
+#if 0    
     //printf("recv start.............");
     ret = getResponse(g_send_fd, &text);
     //printf("recv finish ............");
@@ -523,32 +533,43 @@ int send_data_to_turing(int index, char *pData, int iLength)
         save_token(text);
         free(text);
     } 
-
+#endif
 EXIT:
 
 	return ret;
 }
 
 
-long getTime()    
+int getTime()    
 {
    struct timeval tv;    
    
    gettimeofday(&tv,NULL);    
-   
-   return tv.tv_sec * 1000 + tv.tv_usec / 1000;  
+   return (int)((tv.tv_sec %1000) * 1000 + tv.tv_usec / 1000);  
 }
 
+
+
+void * turing_recv_thread(void *arg)
+{
+    char *text = NULL;
+    int ret = 1;
+    while(ret){
+        ret = getResponse(g_send_fd,&text);
+        free(text);
+        text = NULL;
+    }
+}
 
 
 int main(int argc,char **argv)
 {
     FILE *fp = NULL;
     int size = 0;
-    long start = 0;
-    long finish = 0;
-    long start_bak = 0;
-    
+    int start = 0;
+    int finish = 0;
+    int start_bak = 0;
+    int ret = 0;
     if(argc != 3)
     {
         printf("Usage:[%s filename upload_size_once]  EX:%s 1.wav 16 means upload 16*1024 bytes every time",argv[0],argv[0]);
@@ -566,15 +587,23 @@ int main(int argc,char **argv)
     }
     printf("开始测试\n");
     int index = 0;
+    char *text = NULL;
     getuuid(g_identify);
     get_token();
     g_send_fd = get_socket_fd(turing_host);
-    printf("g_send_fd = %d",g_send_fd);
+    //printf("g_send_fd = %d",g_send_fd);
+    pthread_t pid = 0;
+    
+    pthread_create(&pid,NULL,turing_recv_thread,NULL);
+    
     char *data_buf = calloc(size,1);
     if(!data_buf)
     {
         goto CALLOC_ERROR;
     }
+    start = getTime();
+    //printf("start = %d",start);
+    printf("start = %d.%d",start/1000,start%1000);
     int nread = fread(data_buf,1,size,fp);
     
     while(nread > 0)
@@ -584,17 +613,17 @@ int main(int argc,char **argv)
         {
             index = -index;
         }
-        start = getTime();
-        if(index == 1)
-        {
-            start_bak = start;
-        }
+        //start = getTime();
         send_data_to_turing(index,data_buf,nread);
-        finish = getTime();
-        printf("\033[31m第[%d]次耗时：%ld.%ld\033[0m",index,(finish-start)/1000,(finish-start)%1000);
+        //finish = getTime();
+        //printf("\033[31m第[%d]次耗时：%ld.%ld\033[0m",index,(finish-start)/1000,(finish-start)%1000);
         nread = fread(data_buf,1,size,fp);
     }
-    printf("测试结束，总耗时：%ld.%ld",(finish-start_bak)/1000,(finish-start_bak)%1000);
+
+    pthread_join(pid,NULL);
+    finish = getTime();
+    printf("finish = %d.%d",finish/1000,finish%1000);
+    printf("测试结束，总耗时：%d.%d",(finish-start)/1000,(finish-start)%1000);
     
 CALLOC_ERROR:
     fclose(fp);
