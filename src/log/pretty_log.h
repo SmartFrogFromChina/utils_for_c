@@ -39,9 +39,9 @@ void log_log(
     char *cmd_str,     //log 开关控制
     char *path,         //log 输出文件路径
     char *time,         //时间字符串
-    char *file,         //调用该函数的文件名
-    char *func,         //函数名称
-    int line,           //调用该函数的行号
+    const char *file,   //调用该函数的文件名
+    const char *func,   //函数名称
+    const int line,     //调用该函数的行号
     char *fmt,          //用于输出的格式化字符串
     ...);
 
