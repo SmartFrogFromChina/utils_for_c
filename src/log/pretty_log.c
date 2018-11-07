@@ -11,8 +11,9 @@
 #define RED     "\033[31m"   //红色
 
 
-char log_level_str[MAX_TYPE+1] = {0};
-char log_file_path[MAX_SIZE]   = {0};
+
+char log_level_str[LEVEL_STR_SIZE] = "sss";
+char log_file_path[LOG_PATH_SIZE]   = {0};
 
 
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -44,10 +45,10 @@ void get_current_time(char *ts,int size)
 }
 
 
-/* 使用说明： ./test abc 123  -l xxxxxx -o /tmp/test.log
+/* 使用说明： ./test abc 123  -l sssss -o /tmp/test.log
  * 命令行中有log的特征字符，即可启动log
  * LOG共分6级：debug、info、warn、error、fatal和raw
- * -l 从左到右分别与6级log对应，只要对应位不为0，则可打印该级别的log
+ * -l 从左到右分别与6级log对应，只要对应位不为空且不为n，则可打印该级别的log
  * -o 是将log信息写入文件中
 */
 void pretty_log_init(int argc,char **argv)
@@ -57,8 +58,18 @@ void pretty_log_init(int argc,char **argv)
     {
         switch(ch)
         {
-            case 'l': strcpy(log_level_str,optarg); break; 
-            case 'o': strcpy(log_file_path,optarg); break;
+            case 'l': 
+                {
+                    memset(log_level_str,0,LEVEL_STR_SIZE);
+                    strncpy(log_level_str,optarg,LEVEL_STR_SIZE); 
+                    break; 
+                }
+            case 'o': 
+                {
+                    memset(log_file_path,0,LOG_PATH_SIZE);
+                    strncpy(log_file_path,optarg,LOG_PATH_SIZE);
+                    break;
+                }
         }
     }
 }
@@ -66,13 +77,16 @@ void pretty_log_init(int argc,char **argv)
 
 void log_log(char level,char lock,char *cmd_str,char *path,char *time,const char *file,const char *function,const int line,char *fmt, ...) 
 {
-    if(0 != cmd_str[level])
+    if(cmd_str[level] && 'h' != cmd_str[level])
     {
         if(lock)
             pthread_mutex_lock(&log_lock); 
 
         va_list args;
-        fprintf(stderr,"%s %s%-5s\033[0m %s:%s:%d ",time+11,params[level].color,params[level].name,file,function,line);
+        if(time)
+            fprintf(stderr,"%s %s%-5s\033[0m %s:%s:%d ",time+11,params[level].color,params[level].name,file,function,line);
+        else
+            fprintf(stderr,"%s%-5s\033[0m %s:%s:%d ",params[level].color,params[level].name,file,function,line);
         va_start(args,fmt);
         vfprintf(stderr,fmt,args);
         va_end(args);
@@ -107,7 +121,7 @@ void log_log(char level,char lock,char *cmd_str,char *path,char *time,const char
 
 
 inline void raw_log(char level,char lock,char *cmd_str,const char *path,const char *fmt,...){
-    if(0 != cmd_str[level])
+    if(cmd_str[level] && 'h' != cmd_str[level])
     {
         if(lock)
             pthread_mutex_lock(&log_lock);

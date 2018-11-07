@@ -7,30 +7,30 @@
 
 
 enum {
+    LOGGER_MIN=-1,
     LOGGER_FATAL,
     LOGGER_ERROR,
     LOGGER_WARN,
     LOGGER_INFO,
     LOGGER_DEBUG,
     LOGGER_RAW,
-    MAX_TYPE
+    LOGGER_MAX
 };
 
-
-
 void get_current_time(char *ts,int size);
-int pretty_log_init(int argc,char **argv);
+void pretty_log_init(int argc,char **argv);
 
 
 
-#define MAX_SIZE    64
+#define LEVEL_STR_SIZE     (LOGGER_MAX+1)
+#define LOG_PATH_SIZE      64 
 
 #define TELNET   "/dev/pts/0"
 #define CONSOLE  "/dev/console"
-#define LOG_OUT_PATH CONSOLE
+#define LOG_OUTPUT_PATH CONSOLE
 
-extern char log_level_str[MAX_TYPE+1];
-extern char log_file_path[MAX_SIZE];
+extern char log_level_str[LEVEL_STR_SIZE];
+extern char log_file_path[LOG_PATH_SIZE];
 
 
 void log_log(
@@ -54,16 +54,16 @@ void raw_log(
     ...);
 
 #define _log(level,lock,x...) ({   \
-    char ts[32]="";                 \
+    char ts[32] = {0};              \
     get_current_time(ts,sizeof(ts));\
     log_log(level,lock,log_level_str,log_file_path,ts,__FILE__,__FUNCTION__,__LINE__,x);\
 })
 
 #define console_log(fmt,args...) ({         \
-    FILE *fp = fopen(LOG_OUT_PATH, "a");    \
+    FILE *fp = fopen(LOG_OUTPUT_PATH, "a"); \
     if(!fp)                                 \
         fp=stdout;                          \
-    fprintf(fp,"[%s:%s:%d]:",__FILE__,__FUNCTION__,__LINE__); \
+    fprintf(fp,"[%s:%s:%d]",__FILE__,__FUNCTION__,__LINE__); \
     fprintf(fp,fmt,##args);                 \
     fprintf(fp,"\n");                       \
     if(fp!=stdout)                          \
@@ -71,11 +71,11 @@ void raw_log(
 })
 
 
-#define log_nt(level,lock,x...)  log_log(level,lock,log_level_str,log_file_path,"",__FILE__,__FUNCTION__,__LINE__,x);
+#define _log_nt(level,lock,x...)  log_log(level,lock,log_level_str,log_file_path,"",__FILE__,__FUNCTION__,__LINE__,x);
 #define _rlog(level,lock,x...)   raw_log(level,lock,log_level_str,log_file_path,x);
 
 
-//这一组宏 带锁、时间、颜色，适用于多线程程序调试，但不能用于信号回调函数中，以防死锁
+//这一组宏 锁、时间、颜色都有，适用于多线程程序调试，但不能用于信号回调函数中，以防死锁
 #define raw(x...)       _rlog(LOGGER_RAW, 1,x);
 #define debug(x...)     _log(LOGGER_DEBUG,1,x)
 #define info(x...)      _log(LOGGER_INFO, 1,x)
@@ -84,7 +84,7 @@ void raw_log(
 #define fatal(x...)     _log(LOGGER_FATAL,1,x)
 
 
-//这一组宏 都不带锁
+//这一组宏 去掉了线程锁
 #define raw_nl(x...)    _rlog(LOGGER_RAW, 0,x);
 #define debug_nl(x...)  _log(LOGGER_DEBUG,0,x);
 #define info_nl(x...)   _log(LOGGER_INFO, 0,x);
@@ -93,12 +93,12 @@ void raw_log(
 #define fatal_nl(x...)  _log(LOGGER_FATAL,0,x);
 
 
-//这一组宏 不带时间显示,但是带锁
-#define debug_nt(x...)  log_nt(LOGGER_DEBUG,1,x);
-#define info_nt(x...)   log_nt(LOGGER_INFO, 1,x);
-#define warn_nt(x...)   log_nt(LOGGER_WARN, 1,x);
-#define error_nt(x...)  log_nt(LOGGER_ERROR,1,x);
-#define fatal_nt(x...)  log_nt(LOGGER_FATAL,1,x);
+//这一组宏 去掉了时间显示
+#define debug_nt(x...)  _log_nt(LOGGER_DEBUG,1,x);
+#define info_nt(x...)   _log_nt(LOGGER_INFO, 1,x);
+#define warn_nt(x...)   _log_nt(LOGGER_WARN, 1,x);
+#define error_nt(x...)  _log_nt(LOGGER_ERROR,1,x);
+#define fatal_nt(x...)  _log_nt(LOGGER_FATAL,1,x);
 
 
 #endif
