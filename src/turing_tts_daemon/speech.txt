@@ -1,0 +1,5 @@
+#[filename,contents] 
+#example:[welcome_back,欢迎回来]
+[welcome_back,欢迎回来]
+[12345,你好啊]
+
