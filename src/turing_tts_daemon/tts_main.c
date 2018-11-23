@@ -212,15 +212,15 @@ char * get_turing_tts_url(int tone,char *text)
     
 	apiKey  = "8268ff3bce3e45c7b10a6d49a0fddcd5";
 	uid     = "9C5DE14C6503BCF56821D7A41DA23B4D";
-	token   = "2af62825b9cd49568cc55a6256a86239";
+    token   = "2af62825b9cd49568cc55a6256a86239";
 	
-	json = CreateTuringTtsJson(apiKey ,uid, token, text, &param);
+    json = CreateTuringTtsJson(apiKey ,uid, token, text, &param);
 	if(json == NULL) 
     {
 		ret = -1;
 		goto exit;
 	}
-	//printf("json:%s\n", json);
+	printf("json:%s\n", json);
     fd = get_socket_fd(host);
     if(fd < 0)
         return NULL;

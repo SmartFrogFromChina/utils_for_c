@@ -36,9 +36,13 @@ static char upload_speech[] =
 
 
 
+//94616bceca4a4d94a18c0579cea97fb7
+//4997aee0609bfc5e66f6757796b35be0
+
+
 char * json_str = "{\
-    \"ak\": \"94616bceca4a4d94a18c0579cea97fb7\",\
-    \"uid\": \"4997aee0609bfc5e66f6757796b35be0\", \"asr\": 0, \"tts\": 1,\
+    \"ak\": \"8e3941df07b14bc183766ebd51a3b8b0\",\
+    \"uid\": \"95858721f160edd0ed00ddd23eebfc8f\", \"asr\": 0, \"tts\": 1,\
     \"speed\": 5, \"realTime\": 1, \"index\": %d,\
     \"identify\": \"%s\", \"flag\": 3,\
     \"token\": \"%s\", \"type\": 0, \"tone\": 0,\

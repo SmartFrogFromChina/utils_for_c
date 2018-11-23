@@ -269,9 +269,8 @@ exit:
 	
 	return length;
 }
-extern int file_type;
 
-int save_file(int socket_fd,char *filename)
+int save_file(int socket_fd,char *filename,int file_type)
 {
     char *response = NULL;
 	char *code  = NULL;

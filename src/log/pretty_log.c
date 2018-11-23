@@ -51,6 +51,15 @@ void get_current_time(char *ts,int size)
  * -l 从左到右分别与6级log对应，只要对应位不为空且不为n，则可打印该级别的log
  * -o 是将log信息写入文件中
 */
+
+#if 1
+void pretty_log_init(char *log_level,char *log_path)
+{
+    strncpy(log_level_str,log_level,LEVEL_STR_SIZE); 
+    strncpy(log_file_path,log_path,LOG_PATH_SIZE);
+}
+
+#else
 void pretty_log_init(int argc,char **argv)
 {
     char ch = -1;
@@ -73,7 +82,7 @@ void pretty_log_init(int argc,char **argv)
         }
     }
 }
-
+#endif
 
 void log_log(char level,char lock,char *cmd_str,char *path,char *time,const char *file,const char *function,const int line,char *fmt, ...) 
 {
