@@ -14,7 +14,6 @@
 #include "request_and_response.h"
 #include "wav.h"
 
-
 static char upload_head[] = 
 	"POST /speech/chat HTTP/1.1\r\n"
     "Host: %s\r\n"
@@ -270,8 +269,9 @@ exit:
 	return length;
 }
 
-int save_file(int socket_fd,char *filename,int file_type)
-{
+int save_file(int socket_fd,char *filename,char* type)
+{            
+    int file_type = atoi(type);
     char *response = NULL;
 	char *code  = NULL;
 	int length = 0,mem_size=1024;
@@ -348,12 +348,14 @@ int save_file(int socket_fd,char *filename,int file_type)
             *(suffix+2) = 'a';
             *(suffix+3) = 'v';
         }
+        
         fp = fopen(filename,"w+");
         if(!fp)
         {
             printf("open %s error\n",filename);
             goto exit;
         }
+        //printf("file_type=%d,filename=[%s]",file_type,filename);
         if(strstr(filename,".wav"))
         {
             audio.channel = 1;
@@ -377,7 +379,7 @@ int save_file(int socket_fd,char *filename,int file_type)
         fseek(fp,len,SEEK_SET);
         fwrite(code,1,length,fp);
         fclose(fp);
-        printf("\033[32m[%s]\033[0m 保存成功\n",filename);
+        printf("\033[32m%s\033[0m 保存成功\n",filename);
     }
 
     free(code);    

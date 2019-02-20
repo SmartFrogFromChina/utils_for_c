@@ -3,6 +3,10 @@
 #include <libgen.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/types.h> 
+#include <sys/stat.h> 
+#include <dirent.h>
+
 #include "request_and_response.h"
 
 #define TTS_VERSION     "1.0.0"
@@ -66,12 +70,15 @@ typedef  struct
      *  21	阿Q
      *  22	慧听
     */
+    char *output;
+    //合成文件的保存目录
     char *path;
     //文件路径
     char *filename;
     //文件名称
     char *tts_url; 
     //合成后的tts路径
+    int verbose;
 }tts_t;
 
 
@@ -160,6 +167,20 @@ char * ParseJson(char * str)
             strncpy(buf,code_start,code_end-code_start);
             if(atoi(buf) != 200)
             {
+                switch(atoi(buf))
+                {
+                    case 40001:printf("字段错误");break;      
+                    case 40002:printf("非法字段");break;      
+                    case 40003:printf("字段为空或错误");break;
+                    case 40005:printf("文本转语音失败");break;
+                    case 40007:printf("无效token");break;     
+                    case 40008:printf("apikey过期");break;    
+                    case 40012:printf("拒绝请求");break;      
+                    case 40013:printf("请求超出限制");break;  
+                    case 49999:printf("未知错误");break;      
+                    case 42000:printf("合成tts的文本为空");break;
+                }
+                printf(",合成出错\n");
                 return NULL;
             }
         }
@@ -233,6 +254,7 @@ void print_usage()
             "   -l  需要合成的语种（目前支持中文和英文）(默认 0)\n"
             "       * 0:中文合成\n"
             "       * 1:英文合成\n"
+            "   -o  tts文件保存目录（默认 tts_files）\n"
             "   -p  tts语调设置，取值范围1~9，默认为5\n"
             "   -s  tts语速设置，取值范围1~9，默认为5\n"
             "   -t  tts发音人选择 取值范围20~22（推荐)，0~15，默认0\n"
@@ -256,7 +278,8 @@ void print_usage()
             "       *  21  阿Q\n"
             "       *  22  慧听\n"
             "   -u  设备ID加密后的字符串\n"
-            "   -v  tts音量，取值范围1～9，默认 5\n\n"
+            "   -v  tts音量，取值范围1～9，默认 5\n"
+            "   -V  显示调试信息\n"
             "文本合成语音程序（V%s）由图灵提供技术支持 http://docs.turingos.cn/ai-wifi/tts\n"
             "bug提交：%s\n\n",TTS_VERSION,AUTHOR_EMAIL);
 
@@ -284,7 +307,8 @@ int get_turing_tts_url(tts_t *option)
 		ret = -1;
 		goto exit;
 	}
-	printf("json:%s\n", json);
+    if(option->verbose)
+	    printf("json:%s\n", json);
     fd = get_socket_fd(host);
     if(fd < 0)
         return -1;
@@ -293,8 +317,9 @@ int get_turing_tts_url(tts_t *option)
 		goto exit;
 	getResponse(fd, &input_text);
     close(fd);
+    if(option->verbose)
+        printf("recv=[%s]\n",input_text);
 	option->tts_url = ParseJson(input_text);
-    //printf("input_text=[%s]\n",input_text);
 exit:
 	if(json)
 		free(json);
@@ -317,15 +342,17 @@ int params_init(tts_t * tts)
     tts->pitch  = "5";
     tts->tone   = "0";
     tts->volume = "5";
+    tts->output   ="tts_files";
     tts->path   = NULL;
     tts->tts_url= NULL;
+    tts->verbose= 0;
     
 }
 
 void parse_cmdline(int argc, char *argv[],tts_t *options)
 {
     char ch = -1;
-    while((ch = getopt(argc, argv, "c:e:f:h::k:l:p:s:t:u:v")) != -1)
+    while((ch = getopt(argc, argv, "c:e:f:h::k:l:o:p:s:t:u:v:V::")) != -1)
     {
         switch(ch)
         {
@@ -335,16 +362,37 @@ void parse_cmdline(int argc, char *argv[],tts_t *options)
             case 'h':print_usage();          exit(0);
             case 'k':options->apikey  = optarg;break; 
             case 'l':options->tts_lan = optarg;break;
+            case 'o':options->output  = optarg;break;
             case 'p':options->pitch   = optarg;break;
             case 's':options->speed   = optarg;break; 
             case 't':options->tone    = optarg;break;
             case 'u':options->userid  = optarg;break; 
             case 'v':options->volume  = optarg;break;
+            case 'V':options->verbose = 1;     break;
         }
     }
 }
 
-
+void prepare_work_dir(tts_t *options)
+{
+    if(!options->output)
+    {
+        options->output="tts_files";
+    }
+    
+    if(opendir(options->output) == 0)
+    {
+        printf("创建目录%s\n",options->output);
+        int status = mkdir("tts_files", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        if(status)
+        {
+            printf("无法创建目录,请检查您的权限！\n");
+            exit(0);
+        }
+    }
+    
+    chdir(options->output);
+}
 int parse_text_from_file(tts_t *options)
 {
     #define SIZE (4 * 1024)
@@ -360,14 +408,17 @@ int parse_text_from_file(tts_t *options)
     char text[SIZE]= {0};
     
     if(!options->path)
+    {
         return 1;
+    }
+        
 
     if(NULL == (fp = fopen(options->path,"r")))
     {
         printf("文件%s打开失败，请检查文件是否存在。\n",options->path);
         return -1;
     }
-    
+    prepare_work_dir(options);
     while(!feof(fp))
     {
         memset(buf,0,SIZE);
@@ -401,6 +452,8 @@ int parse_text_from_file(tts_t *options)
     return 0;
 }
 
+
+
 int main(int argc,char **argv)
 {
     tts_t options = {0};
@@ -409,9 +462,9 @@ int main(int argc,char **argv)
     params_init(&options);
     parse_cmdline(argc,argv,&options);
     ret = parse_text_from_file(&options);
-        
     if(1 == ret)
     {
+        prepare_work_dir(&options);
         get_turing_tts_url(&options);
         download_file_by_url(&options);
     }

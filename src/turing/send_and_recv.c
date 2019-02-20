@@ -13,17 +13,14 @@
 #include <stdarg.h>
 
 
+
 static char upload_head[] = 
 	"POST /speech/chat HTTP/1.1\r\n"
     "Host: %s\r\n"
     "Connection: keep-alive\r\n"
 	"Content-Length: %d\r\n"
-    "Cache-Control: no-cache\r\n"
-    "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36\r\n"
 	"Content-Type: multipart/form-data; boundary=%s\r\n"
     "Accept: */*\r\n"
-    "Accept-Encoding: gzip, deflate\r\n"
-    "Accept-Language: en-US,en;q=0.8,zh-CN;q=0.6,zh;q=0.4,zh-TW;q=0.2,es;q=0.2\r\n"
     "\r\n";
 
 
@@ -39,14 +36,31 @@ static char upload_speech[] =
 //94616bceca4a4d94a18c0579cea97fb7
 //4997aee0609bfc5e66f6757796b35be0
 
+//"\"ak\":\"8e3941df07b14bc183766ebd51a3b8b0\","
+//"\"uid\":\"718eb6f38f45d16e787ff04ea8c2bf05\","
 
-char * json_str = "{\
-    \"ak\": \"8e3941df07b14bc183766ebd51a3b8b0\",\
-    \"uid\": \"95858721f160edd0ed00ddd23eebfc8f\", \"asr\": 0, \"tts\": 1,\
-    \"speed\": 5, \"realTime\": 1, \"index\": %d,\
-    \"identify\": \"%s\", \"flag\": 3,\
-    \"token\": \"%s\", \"type\": 0, \"tone\": 0,\
-    \"volume\": 9 }";
+char * json_str = "{"
+#ifdef HB
+                        "\"ak\":\"ece75b072cb74187b14c59e96aac51b6\","
+                        "\"uid\":\"61f47f6e1d232860b005fff2a7b5fc99\","
+#else
+                        "\"ak\":\"8e3941df07b14bc183766ebd51a3b8b0\","
+                        "\"uid\":\"00e45101d8888c2ec59749b5b69c4d6a\","
+#endif
+                        "\"asr\":0,"
+                        "\"tts\":1,"
+                        "\"speed\":5,"
+                        "\"realTime\":%d,"
+                        "\"index\":%d,"
+                        "\"identify\":\"%s\","
+                        "\"flag\":3,"
+                        "\"token\":\"%s\","
+                        "\"type\":0,"
+                        "\"tone\":0,"
+                        "\"volume\":9"
+                  "}"; 
+
+
 
 
 
@@ -54,7 +68,7 @@ char g_identify[48] = {0};
 int g_send_fd = 0;
 static char *turing_host = "smartdevice.ai.tuling123.com";
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-char g_token[36] = {0};
+char g_token[36] = "82e08206b48a476a931e5b0e59fe630b";
 
 
 
@@ -104,8 +118,9 @@ void get_token()
     }
     else
     {
-        fgets(g_token,36,fp);
-        //printf("g_token = [%s]",g_token);
+        fread(g_token,1,32,fp);
+        int len = strlen(g_token);
+        //printf("g_token = [%s],len=%d",g_token,len);
         fclose(fp);
     }
     
@@ -113,30 +128,35 @@ void get_token()
 
 void save_token(char *str)
 {
-    FILE *fp = fopen("token.txt","w+");
-    if(!fp)
+    char *split= "token\":\"";
+    char *start = strstr(str,split);
+    if(start)
     {
-        printf("error to create token.txt");
-        return ;
-    }
-    else
-    {
-        char *split= "token\":\"";
-        char *start = strstr(str,split);
-        if(start)
+        start += strlen(split);
+        char *end = strstr(start,"\"");
+        if(end)
         {
-            start += strlen(split);
-            char *end = strstr(start,"\",\"");
-            if(end)
+            FILE *fp = fopen("token.txt","w+");
+            if(!fp)
             {
-                strncpy(g_token,start,end-start);
-                fputs(g_token,fp);
-                //printf("token = [%s]",g_token);
+                printf("error to create token.txt");
+                return ;
             }
+            strncpy(g_token,start,end-start);
+            fputs(g_token,fp);
+            //printf("token = [%s]",g_token);
+            fclose(fp);
         }
-        fclose(fp);
     }
 }
+
+#include <stdio.h>
+#include <errno.h>
+#include <netdb.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 
 int get_socket_fd(char *host)
@@ -160,11 +180,40 @@ int get_socket_fd(char *host)
 		close(sockfd);
 		return -1;
     }
+#if 1
+    char   str[32];
+    char   *ptr, **pptr;
+    
+    printf("official hostname:%s",server->h_name);
+    for(pptr = server->h_aliases; *pptr != NULL; pptr++)
+        printf(" alias:%s",*pptr);
+    
+    switch(server->h_addrtype)
+    {
+        case AF_INET:
+        case AF_INET6:
+            printf("server->h_addrtype=%d",server->h_addrtype);
+            pptr=server->h_addr_list;
+            for(; *pptr!=NULL; pptr++)
+                printf(" address:%s",inet_ntop(server->h_addrtype, *pptr, str, sizeof(str)));
+            printf(" first address: %s",inet_ntop(server->h_addrtype, server->h_addr, str, sizeof(str)));
+        break;
+        default:
+            printf("unknown address type\n");
+        break;
+    }
+
+
+#endif
+    
     /* fill in the structure */
     memset(&serv_addr,0,sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(portno);
     memcpy(&serv_addr.sin_addr.s_addr,server->h_addr,server->h_length);
+
+    
+    printf("ip = %s",inet_ntoa(serv_addr.sin_addr));
 
     /* connect the socket */
     if (connect(sockfd,(struct sockaddr *)&serv_addr,sizeof(serv_addr)) < 0) {
@@ -230,9 +279,11 @@ recv_again:
             printf("recv need continue");
             goto recv_again;
         }
-            
         else
+        {
             printf("recv error, fd=%d, errno=%d %m", sockfd, errno);
+        }
+            
     }
 	//setsockopt(sockfd, IPPROTO_TCP, TCP_QUICKACK, &on, sizeof(int));  
     //printf("cur_len = %d",cur_len);
@@ -240,10 +291,11 @@ recv_again:
 }
 
 
-static void get_resp_header(const char *response, struct resp_header *resp)
+static int get_resp_header(const char *response, struct resp_header *resp)
 {    
 	/*获取响应头的信息*/
-    
+    if(strlen(response) < 2)
+        return -1;
 	char *pos = strstr(response, "HTTP/");    
 	if (pos) {        
 		//debug("status_code: %s", pos);
@@ -276,7 +328,7 @@ static void get_resp_header(const char *response, struct resp_header *resp)
     else
         {printf("Can not find rnrn ");}
         
-  
+  return 0;
 }
 
 int get_response_code(char *str)
@@ -316,11 +368,7 @@ int getResponse(int socket_fd, char **text)
 #endif        
 		if(ret < 0)
         {
-            if(errno == EINTR ||errno == EAGAIN )
-            {   
-                printf("recv need continue");
-                continue;
-            }
+            continue;
         }
         else if(ret == 0)
         {
@@ -342,8 +390,12 @@ int getResponse(int socket_fd, char **text)
 	}
     //printf("receiving header over");
     //printf("response = [%s]",response);
-	get_resp_header(response,&resp);
-    
+	ret = get_resp_header(response,&resp);
+    if(ret < 0)
+    {
+        
+        goto exit;
+    }
 	if(resp.status_code != 200 || resp.content_length == 0){
 		length = -1;
 		goto exit;
@@ -479,7 +531,36 @@ exit:
 	return ret;
 }
 
+#ifndef HB
+void getuuid(char *pDate)  
+{  
+    int flag, i;
+	static unsigned int n = 0;
+    srand((unsigned) time(NULL )+n);  
+    for (i = 0; i < 36; i++)  
+    {  
+        flag = rand() % 3;  
+        switch (flag)  
+        {  
+            case 0:  
+                pDate[i] = 'a' + rand() % 26;  
+                break;  
+            case 1:  
+                pDate[i] = '0' + rand() % 10;  
+                break;
+            case 2:  
+                pDate[i] = 'A' + rand() % 26;  
+                break;  
+            default:  
+                pDate[i] = 'x';  
+                break;  
+        }  
+    }  
+    	pDate[36] = '\0';  
+	n++;
+}  
 
+#else
 void getuuid(char *pDate)  
 {  
     int flag, i;
@@ -506,22 +587,23 @@ void getuuid(char *pDate)
     	pDate[36] = '\0';  
 	n++;
 }  
+#endif
 
 
 
 
-
-int send_data_to_turing(int index, char *pData, int iLength) 
+int send_data_to_turing(int index, char *pData, int iLength,int realtime) 
 {
     int ret = -1;
     char *text = NULL;
     char jsonData[1024] = {0};
     //printf("g_token = %s",g_token);
-    sprintf(jsonData,json_str,index,g_identify,g_token);
-    //printf("index = %d",index);
+    sprintf(jsonData,json_str,realtime,index,g_identify,g_token);
+    
     
     if(NULL == jsonData) 
         return -1;
+    printf("jsonData = %s",jsonData);
     //printf("upload start.............");
     ret = turingBuildRequest(g_send_fd, turing_host, pData, iLength,jsonData);
     //printf("upload finish .............");
@@ -560,8 +642,11 @@ void * turing_recv_thread(void *arg)
     int ret = 1;
     while(ret){
         ret = getResponse(g_send_fd,&text);
-        free(text);
-        text = NULL;
+        if(text)
+        {
+            free(text);
+            text = NULL;
+        }
     }
 }
 
@@ -570,10 +655,14 @@ int main(int argc,char **argv)
 {
     FILE *fp = NULL;
     int size = 0;
+    int file_size = 0;
+    
     int start = 0;
     int finish = 0;
     int start_bak = 0;
     int ret = 0;
+    int real_flag = 0;
+    
     if(argc != 3)
     {
         printf("Usage:[%s filename upload_size_once]  EX:%s 1.wav 16 means upload 16*1024 bytes every time",argv[0],argv[0]);
@@ -587,6 +676,17 @@ int main(int argc,char **argv)
         {
             printf("Can not open file");
             return -1;
+        }
+        fseek(fp,0,SEEK_END);
+        file_size = ftell(fp);
+        fseek(fp,0,SEEK_SET);
+        if(size >file_size)
+        {
+            real_flag = 0;
+        }
+        else
+        {
+            real_flag = 1;
         }
     }
     printf("开始测试\n");
@@ -618,7 +718,7 @@ int main(int argc,char **argv)
             index = -index;
         }
         //start = getTime();
-        send_data_to_turing(index,data_buf,nread);
+        send_data_to_turing(index,data_buf,nread,real_flag);
         //finish = getTime();
         //printf("\033[31m第[%d]次耗时：%ld.%ld\033[0m",index,(finish-start)/1000,(finish-start)%1000);
         nread = fread(data_buf,1,size,fp);
