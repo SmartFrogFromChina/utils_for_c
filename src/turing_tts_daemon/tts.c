@@ -342,7 +342,7 @@ int params_init(tts_t * tts)
     tts->pitch  = "5";
     tts->tone   = "0";
     tts->volume = "5";
-    tts->output   ="tts_files";
+    tts->output ="tts_files";
     tts->path   = NULL;
     tts->tts_url= NULL;
     tts->verbose= 0;
@@ -352,7 +352,7 @@ int params_init(tts_t * tts)
 void parse_cmdline(int argc, char *argv[],tts_t *options)
 {
     char ch = -1;
-    while((ch = getopt(argc, argv, "c:e:f:h::k:l:o:p:s:t:u:v:V::")) != -1)
+    while((ch = getopt(argc, argv, "c:e:f:h::k:l:o:p:s:t:u:v:T:V::")) != -1)
     {
         switch(ch)
         {
@@ -368,6 +368,7 @@ void parse_cmdline(int argc, char *argv[],tts_t *options)
             case 't':options->tone    = optarg;break;
             case 'u':options->userid  = optarg;break; 
             case 'v':options->volume  = optarg;break;
+            case 'T':options->token   = optarg;break;
             case 'V':options->verbose = 1;     break;
         }
     }
