@@ -332,8 +332,8 @@ exit:
 
 int params_init(tts_t * tts)
 {
-    tts->apikey = "8268ff3bce3e45c7b10a6d49a0fddcd5";
-    tts->userid = "9C5DE14C6503BCF56821D7A41DA23B4D";
+    tts->apikey = "ece75b072cb74187b14c59e96aac51b6";
+    tts->userid = "61f47f6e1d232860b005fff2a7b5fc99";
     tts->token  = "2af62825b9cd49568cc55a6256a86239";
     tts->text   = NULL;
     tts->tts    = "0";
