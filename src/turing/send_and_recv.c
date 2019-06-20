@@ -11,16 +11,19 @@
 #include <errno.h>
 #include <pthread.h>
 #include <stdarg.h>
-
-
+#include <aes.h>
 
 static char upload_head[] = 
 	"POST /speech/chat HTTP/1.1\r\n"
     "Host: %s\r\n"
     "Connection: keep-alive\r\n"
 	"Content-Length: %d\r\n"
+    "Cache-Control: no-cache\r\n"
+    "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36\r\n"
 	"Content-Type: multipart/form-data; boundary=%s\r\n"
     "Accept: */*\r\n"
+    "Accept-Encoding: gzip, deflate\r\n"
+    "Accept-Language: en-US,en;q=0.8,zh-CN;q=0.6,zh;q=0.4,zh-TW;q=0.2,es;q=0.2\r\n"
     "\r\n";
 
 
@@ -31,36 +34,87 @@ static char upload_speech[] =
     "Content-Disposition: form-data; name=\"speech\"; filename=\"upload.wav\"\r\n"
     "Content-Type: application/octet-stream\r\n\r\n";
 
+#define HUA_BEI
 
-
-//94616bceca4a4d94a18c0579cea97fb7
-//4997aee0609bfc5e66f6757796b35be0
-
-//"\"ak\":\"8e3941df07b14bc183766ebd51a3b8b0\","
-//"\"uid\":\"718eb6f38f45d16e787ff04ea8c2bf05\","
-
-char * json_str = "{"
-#ifdef HB
-                        "\"ak\":\"ece75b072cb74187b14c59e96aac51b6\","
-                        "\"uid\":\"61f47f6e1d232860b005fff2a7b5fc99\","
-#else
-                        "\"ak\":\"8e3941df07b14bc183766ebd51a3b8b0\","
-                        "\"uid\":\"00e45101d8888c2ec59749b5b69c4d6a\","
+#if defined(NONG_BAO)
+//农宝音箱
+char *g_api_key = "b521ea77ba004daba9f19962e448be0a";
+char *g_aes_key = "88D0fM0YT6LP28c5";
+#elif defined(XIN_ZHI_NENG)
+//芯智能
+char *g_api_key = "c10fc219a55a4dd3a64679a71f91b994"
+char *g_aes_key = "49Z71OX993p48257"
+#elif defined(DA_LIAN_MAO)
+//大脸猫AI机器人
+char *g_api_key = "94616bceca4a4d94a18c0579cea97fb7";
+char *g_aes_key = "22z0ex4WT37d567f"
+#elif  defined(CC_ZHI_NENG)
+//CC智能机器人
+char *g_api_key = "8e3941df07b14bc183766ebd51a3b8b0";
+char *g_aes_key = "m8wO0HTYfL01s0D8";
+#elif  defined(HUA_BEI)
+//画贝机器人
+char *g_api_key = "ece75b072cb74187b14c59e96aac51b6";
+char *g_aes_key = "4uU32kwGc3Rvd217";
+#elif  defined(CHUN_MIAO)
+//春苗点读笔方案
+char *g_api_key = "67990527d6a04a56b2da2db58c6a99b0";
+char *g_aes_key = "03D8c726868371P1";
+#elif  defined(LE_MENG_LE_BEI)
+//乐蒙乐贝AI机器人
+char *g_api_key = "3bfade27b46b4fd29dbe3e491da493bd";
+char *g_aes_key = "ja6539jJ5y29nL7Q";
+#elif  defined(PAN_DO)
+//Pando机器人
+char *g_api_key = "08614bd970ba49d092a3e551e18823e0";
+char *g_aes_key = "741L596Yef74234D";
+#elif  defined(DOSS)
+//DOSS儿童机器人
+char *g_api_key = "4495bcf4e1ff486eb815b506b2e1092d";
+char *g_aes_key = "LjM4kbUxVkem5PjE";
+#elif  defined(SU_NING_V1)
+//苏宁儿童故事机
+char *g_api_key = "a6133c0a62104bfcb4c430ae69d5cb04";
+char *g_aes_key = "2FD0C8188h4497YE";
+#elif  defined(SU_NING_V2)
+//苏宁儿童故事机2
+char *g_api_key = "af9e248044c04491840234bdf7920447";
+char *g_aes_key = "35k7Q2c57G3S060v";
+#elif  defined(XIAO_BEI_XING)
+//小贝星
+char *g_api_key = "70011483d4534e778ced1d81f132ee6e";
+char *g_aes_key = "97652p8sXGd2Gx51";
+#elif  defined(LANG_YAN_DU_CHUANG)
+//狼眼创新
+char *g_api_key = "f0fad35932164446971dc962137cbcce";
+char *g_aes_key = "Fz55ip99a90DA7WZ";
+#elif  defined(JI_QI_REN_DIAN_DU_BI)
+//机器人点读笔
+char *g_api_key = "bba686a43e8243a3b898bd536c4728ad";
+char *g_aes_key = "JGB8XA57K81usNh1";
 #endif
-                        "\"asr\":0,"
-                        "\"tts\":1,"
-                        "\"speed\":5,"
-                        "\"realTime\":%d,"
-                        "\"index\":%d,"
-                        "\"identify\":\"%s\","
-                        "\"flag\":3,"
-                        "\"token\":\"%s\","
-                        "\"type\":0,"
-                        "\"tone\":0,"
-                        "\"volume\":9"
-                  "}"; 
 
 
+#if 0
+char * json_str = "{\
+    \"ak\": \"%s\",\
+    \"uid\": \"%s\", \"asr\": 0, \"tts\": 1,\
+    \"speed\": 5, \"realTime\": 1, \"index\": %d,\
+    \"identify\": \"%s\", \"flag\": 3,\
+    \"token\": \"%s\", \"type\": 0, \"tone\": 0,\
+    \"volume\": 9 }";
+#else  
+ //农宝
+ char * json_str = "{\
+    \"ak\": \"%s\",\
+    \"uid\": \"%s\", \"asr\": 2, \"tts\": 3,\
+    \"speed\": 5, \"realTime\": 1, \"index\": %d,\
+    \"identify\": \"%s\", \"flag\": 3,\
+    \"token\": \"%s\", \"type\": 0, \"tone\": 22,\
+    \"volume\": 9 }";   
+
+
+#endif
 
 
 
@@ -68,7 +122,7 @@ char g_identify[48] = {0};
 int g_send_fd = 0;
 static char *turing_host = "smartdevice.ai.tuling123.com";
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-char g_token[36] = "82e08206b48a476a931e5b0e59fe630b";
+char g_token[36] = {0};
 
 
 
@@ -118,9 +172,8 @@ void get_token()
     }
     else
     {
-        fread(g_token,1,32,fp);
-        int len = strlen(g_token);
-        //printf("g_token = [%s],len=%d",g_token,len);
+        fgets(g_token,36,fp);
+        //printf("g_token = [%s]",g_token);
         fclose(fp);
     }
     
@@ -128,35 +181,30 @@ void get_token()
 
 void save_token(char *str)
 {
-    char *split= "token\":\"";
-    char *start = strstr(str,split);
-    if(start)
+    FILE *fp = fopen("token.txt","w+");
+    if(!fp)
     {
-        start += strlen(split);
-        char *end = strstr(start,"\"");
-        if(end)
+        printf("error to create token.txt");
+        return ;
+    }
+    else
+    {
+        char *split= "token\":\"";
+        char *start = strstr(str,split);
+        if(start)
         {
-            FILE *fp = fopen("token.txt","w+");
-            if(!fp)
+            start += strlen(split);
+            char *end = strstr(start,"\",\"");
+            if(end)
             {
-                printf("error to create token.txt");
-                return ;
+                strncpy(g_token,start,end-start);
+                fputs(g_token,fp);
+                //printf("token = [%s]",g_token);
             }
-            strncpy(g_token,start,end-start);
-            fputs(g_token,fp);
-            //printf("token = [%s]",g_token);
-            fclose(fp);
         }
+        fclose(fp);
     }
 }
-
-#include <stdio.h>
-#include <errno.h>
-#include <netdb.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 
 
 int get_socket_fd(char *host)
@@ -180,40 +228,11 @@ int get_socket_fd(char *host)
 		close(sockfd);
 		return -1;
     }
-#if 1
-    char   str[32];
-    char   *ptr, **pptr;
-    
-    printf("official hostname:%s",server->h_name);
-    for(pptr = server->h_aliases; *pptr != NULL; pptr++)
-        printf(" alias:%s",*pptr);
-    
-    switch(server->h_addrtype)
-    {
-        case AF_INET:
-        case AF_INET6:
-            printf("server->h_addrtype=%d",server->h_addrtype);
-            pptr=server->h_addr_list;
-            for(; *pptr!=NULL; pptr++)
-                printf(" address:%s",inet_ntop(server->h_addrtype, *pptr, str, sizeof(str)));
-            printf(" first address: %s",inet_ntop(server->h_addrtype, server->h_addr, str, sizeof(str)));
-        break;
-        default:
-            printf("unknown address type\n");
-        break;
-    }
-
-
-#endif
-    
     /* fill in the structure */
     memset(&serv_addr,0,sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(portno);
     memcpy(&serv_addr.sin_addr.s_addr,server->h_addr,server->h_length);
-
-    
-    printf("ip = %s",inet_ntoa(serv_addr.sin_addr));
 
     /* connect the socket */
     if (connect(sockfd,(struct sockaddr *)&serv_addr,sizeof(serv_addr)) < 0) {
@@ -279,11 +298,9 @@ recv_again:
             printf("recv need continue");
             goto recv_again;
         }
-        else
-        {
-            printf("recv error, fd=%d, errno=%d %m", sockfd, errno);
-        }
             
+        else
+            printf("recv error, fd=%d, errno=%d %m", sockfd, errno);
     }
 	//setsockopt(sockfd, IPPROTO_TCP, TCP_QUICKACK, &on, sizeof(int));  
     //printf("cur_len = %d",cur_len);
@@ -291,11 +308,10 @@ recv_again:
 }
 
 
-static int get_resp_header(const char *response, struct resp_header *resp)
+static void get_resp_header(const char *response, struct resp_header *resp)
 {    
 	/*获取响应头的信息*/
-    if(strlen(response) < 2)
-        return -1;
+    
 	char *pos = strstr(response, "HTTP/");    
 	if (pos) {        
 		//debug("status_code: %s", pos);
@@ -328,7 +344,7 @@ static int get_resp_header(const char *response, struct resp_header *resp)
     else
         {printf("Can not find rnrn ");}
         
-  return 0;
+  
 }
 
 int get_response_code(char *str)
@@ -368,7 +384,11 @@ int getResponse(int socket_fd, char **text)
 #endif        
 		if(ret < 0)
         {
-            continue;
+            if(errno == EINTR ||errno == EAGAIN )
+            {   
+                printf("recv need continue");
+                continue;
+            }
         }
         else if(ret == 0)
         {
@@ -390,12 +410,8 @@ int getResponse(int socket_fd, char **text)
 	}
     //printf("receiving header over");
     //printf("response = [%s]",response);
-	ret = get_resp_header(response,&resp);
-    if(ret < 0)
-    {
-        
-        goto exit;
-    }
+	get_resp_header(response,&resp);
+    
 	if(resp.status_code != 200 || resp.content_length == 0){
 		length = -1;
 		goto exit;
@@ -531,36 +547,7 @@ exit:
 	return ret;
 }
 
-#ifndef HB
-void getuuid(char *pDate)  
-{  
-    int flag, i;
-	static unsigned int n = 0;
-    srand((unsigned) time(NULL )+n);  
-    for (i = 0; i < 36; i++)  
-    {  
-        flag = rand() % 3;  
-        switch (flag)  
-        {  
-            case 0:  
-                pDate[i] = 'a' + rand() % 26;  
-                break;  
-            case 1:  
-                pDate[i] = '0' + rand() % 10;  
-                break;
-            case 2:  
-                pDate[i] = 'A' + rand() % 26;  
-                break;  
-            default:  
-                pDate[i] = 'x';  
-                break;  
-        }  
-    }  
-    	pDate[36] = '\0';  
-	n++;
-}  
 
-#else
 void getuuid(char *pDate)  
 {  
     int flag, i;
@@ -587,23 +574,64 @@ void getuuid(char *pDate)
     	pDate[36] = '\0';  
 	n++;
 }  
-#endif
+unsigned char * get_user_id(char *apiKey, char *aesKey)
+{
+	char *device = "eth0"; 
+	char temp_id[128] = {0};
+	char aes_iv[17] = {0};
+	unsigned char macaddr[ETH_ALEN]; //ETH_ALEN（6）是MAC地址长度  
+	int i,s;  
+	s = socket(AF_INET,SOCK_DGRAM,0); //建立套接口  
+	struct ifreq req;  
+	int err,rc;  
+	rc  = strcpy(req.ifr_name, device); //将设备名作为输入参数传入  
+	err = ioctl(s, SIOCGIFHWADDR, &req); //执行取MAC地址操作  
+	close(s);  
+	memcpy(aes_iv, apiKey,16);
+	sprintf(temp_id, "%s", "aiAA");
+
+	if (err != -1 )  
+	{  
+		memcpy(macaddr, req.ifr_hwaddr.sa_data, ETH_ALEN); //取输出的MAC地址  
+		for(i = 0; i < ETH_ALEN; i++)  
+		{
+			sprintf(&temp_id[(2+i) * 2], "%02x", macaddr[i]);
+		}
+	}
+
+	printf("temp_id:%s\n", temp_id);
+
+
+	unsigned char out[64] = {'0'};
+	unsigned char *pData = malloc(128);
+	memset(pData, 0, 128);	
+
+	AES128_CBC_encrypt_buffer(out, temp_id, 16, aesKey, aes_iv);
+
+    for(i = 0; i<16; i++)
+	{
+		sprintf(&pData[i*2], "%02x", out[i]);
+    }
+	printf("pData:%s\n",pData);
+	return pData;
+}
 
 
 
 
-int send_data_to_turing(int index, char *pData, int iLength,int realtime) 
+int send_data_to_turing(int index, char *pData, int iLength) 
 {
     int ret = -1;
     char *text = NULL;
     char jsonData[1024] = {0};
     //printf("g_token = %s",g_token);
-    sprintf(jsonData,json_str,realtime,index,g_identify,g_token);
-    
+    char *user_id = get_user_id(g_api_key,g_aes_key);
+    sprintf(jsonData,json_str,g_api_key,user_id,index,g_identify,g_token);
+    //printf("index = %d",index);
+    free(user_id);
     
     if(NULL == jsonData) 
         return -1;
-    printf("jsonData = %s",jsonData);
     //printf("upload start.............");
     ret = turingBuildRequest(g_send_fd, turing_host, pData, iLength,jsonData);
     //printf("upload finish .............");
@@ -642,11 +670,8 @@ void * turing_recv_thread(void *arg)
     int ret = 1;
     while(ret){
         ret = getResponse(g_send_fd,&text);
-        if(text)
-        {
-            free(text);
-            text = NULL;
-        }
+        free(text);
+        text = NULL;
     }
 }
 
@@ -655,14 +680,10 @@ int main(int argc,char **argv)
 {
     FILE *fp = NULL;
     int size = 0;
-    int file_size = 0;
-    
     int start = 0;
     int finish = 0;
     int start_bak = 0;
     int ret = 0;
-    int real_flag = 0;
-    
     if(argc != 3)
     {
         printf("Usage:[%s filename upload_size_once]  EX:%s 1.wav 16 means upload 16*1024 bytes every time",argv[0],argv[0]);
@@ -676,17 +697,6 @@ int main(int argc,char **argv)
         {
             printf("Can not open file");
             return -1;
-        }
-        fseek(fp,0,SEEK_END);
-        file_size = ftell(fp);
-        fseek(fp,0,SEEK_SET);
-        if(size >file_size)
-        {
-            real_flag = 0;
-        }
-        else
-        {
-            real_flag = 1;
         }
     }
     printf("开始测试\n");
@@ -718,7 +728,7 @@ int main(int argc,char **argv)
             index = -index;
         }
         //start = getTime();
-        send_data_to_turing(index,data_buf,nread,real_flag);
+        send_data_to_turing(index,data_buf,nread);
         //finish = getTime();
         //printf("\033[31m第[%d]次耗时：%ld.%ld\033[0m",index,(finish-start)/1000,(finish-start)%1000);
         nread = fread(data_buf,1,size,fp);
